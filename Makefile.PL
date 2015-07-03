@@ -3,32 +3,11 @@ use strict;
 use warnings;
 
 use ExtUtils::MakeMaker;
-use Alien::Sodium;
+use ExtUtils::PkgConfig;
 use File::Spec ();
 use File::ShareDir ();
 use Config;
 use Text::ParseWords qw(shellwords);
-
-my $lib_ext = $Config{lib_ext};
-
-my $libsodium = Alien::Sodium->new;
-
-my $libsodium_lib = "libsodium${lib_ext}";
-my $libsodium_path;
-my @dirs = map { s/^-L//g; $_ } grep { /^-L/ } shellwords($libsodium->libs);
-
-# pkg-config may fail, so try harder to locate libsodium.a
-push @dirs, File::Spec->catdir( File::ShareDir::dist_dir("Alien-Sodium"), 'lib' );
-
-for my $dir ( @dirs ) {
-    if ( -e "$dir/libsodium${lib_ext}" ) {
-        $libsodium_path = "$dir/$libsodium_lib";
-        last;
-    }
-}
-
-die "Is Alien::Sodium available? Could not locate $libsodium_lib in @dirs\n"
-    unless $libsodium_path;
 
 my %WriteMakefileArgs = (
   ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
@@ -40,18 +19,16 @@ my %WriteMakefileArgs = (
   "CONFIGURE_REQUIRES" => {
     "File::ShareDir" => 0,
     "File::Spec" => 0,
-    "Alien::Sodium" => "1.0.3.0",
     "ExtUtils::MakeMaker" => "0",
     "ExtUtils::CBuilder" => 0,
   },
   "DISTNAME" => "Crypt-NaCl-Sodium",
   "EXE_FILES" => [],
-  "MYEXTLIB"  => $libsodium_path,
-  "INC"       => join(' ', "-I.", $libsodium->cflags),
+  "LIBS"      => ExtUtils::PkgConfig->libs("libsodium"),
+  "INC"       => join(' ', "-I.", ExtUtils::PkgConfig->cflags("libsodium")),
   "LICENSE" => "perl",
   "NAME" => "Crypt::NaCl::Sodium",
   "PREREQ_PM" => {
-    "Alien::Sodium" => '1.0.3.0',
     "Carp" => 0,
     "Sub::Exporter" => 0,
     "XSLoader" => 0,
@@ -68,7 +45,6 @@ my %WriteMakefileArgs = (
 );
 
 my %FallbackPrereqs = (
-  "Alien::Sodium" => "1.0.3.0",
   "Carp" => 0,
   "Sub::Exporter" => 0,
   "Test::More" => 0,
